@@ -1,0 +1,32 @@
+:root { font-family: system-ui, sans-serif; color: #dbe8e4; background: #101c20; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { max-width: 1200px; margin: auto; padding: 0 48px; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 28px 0; border-bottom: 1px solid #314145; gap: 16px; }
+.brand { color: #d6f5a2; font-weight: 700; text-decoration: none; font-size: 22px; }
+.brand span { color: #dbe8e4; font-size: 13px; margin-left: 18px; font-weight: 400; }
+.tag { border: 1px solid #435255; border-radius: 20px; padding: 6px 12px; font-size: 12px; white-space: nowrap; }
+.hero { padding: 72px 0 44px; }
+.eyebrow, .number { text-transform: uppercase; letter-spacing: 2px; font-size: 11px; color: #a9bcba; }
+h1 { font-size: clamp(32px, 4.7vw, 58px); font-weight: 500; letter-spacing: -2px; line-height: 1.15; margin: 20px 0; }
+h1 em { color: #d6f5a2; font-style: normal; }
+.intro { max-width: 610px; font-size: 17px; line-height: 1.7; color: #a9bcba; }
+.workspace { border: 1px solid #435255; border-radius: 12px; background: #152429; overflow: hidden; }
+.section-title { padding: 22px 26px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #314145; }
+.section-title .eyebrow { margin: 0 0 8px; }
+h2 { margin: 0; font-weight: 500; font-size: 20px; }
+h3 { font-weight: 500; font-size: 18px; }
+.empty { padding: 30px 20px; text-align: center; }
+.empty p { max-width: 490px; margin: auto; color: #a9bcba; line-height: 1.7; font-size: 14px; }
+.graph-icon { color: #d6f5a2; font-size: 36px; }
+.connection { padding: 14px 26px; border-top: 1px solid #314145; display: flex; gap: 10px; align-items: center; font-size: 12px; color: #a9bcba; flex-wrap: wrap; }
+.dot { height: 7px; width: 7px; border-radius: 100%; background: #d5b269; }
+.dot.connected { background: #d6f5a2; }
+.dot.unavailable { background: #ef9588; }
+button { background: transparent; border: 1px solid #a9bcba; color: #dbe8e4; padding: 6px 10px; border-radius: 5px; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 2px solid #d6f5a2; outline-offset: 4px; }
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin: 36px 0; }
+.pillars p { font-size: 13px; line-height: 1.8; color: #a9bcba; }
+.pillars h3 { margin: 14px 0 8px; }
+footer { border-top: 1px solid #314145; padding: 20px 0 28px; font-size: 11px; color: #a9bcba; line-height: 1.7; }
+@media (max-width: 650px) { main { padding: 0 22px; } .hero { padding-top: 42px; } .pillars { grid-template-columns: 1fr; gap: 14px; } .brand span { display: none; } .section-title { padding: 20px; } h1 { letter-spacing: -1px; } }

@@ -9,6 +9,23 @@
 
 Only one implementation phase should be in progress at a time.
 
+## Platform vision
+
+The destination is a central application security, exposure, and resilience workspace. One evidence-backed application graph connects:
+
+- Business capabilities, user journeys, owners, criticality, and recovery objectives.
+- Services, APIs, cloud resources, databases, queues, and external dependencies.
+- Identities, permissions, network reachability, exposure, packages, and known vulnerabilities.
+- Failure propagation, fallbacks, monitoring, administrative access, recovery paths, and experiment results.
+
+The application is the entry point: select an application, inspect capabilities and dependencies, investigate exposure, predict impact, validate through controlled experiments, and review evidence and recommended actions.
+
+Example questions include: Is a vulnerable service reachable, which customer capability depends on it, and what would isolation affect? If the identity provider fails, can customers log in and can engineers still access recovery systems?
+
+Integrate existing scanners, inventories, and telemetry through collectors. Preserve provenance and limitations rather than rebuilding every tool. Every assessment must expose sources, recency, confidence, and coverage gaps. Missing or stale evidence means unknown, not healthy or secure. A confirmed dependency does not confirm a predicted failure; predictions and observations remain separate. Do not invent completeness percentages without a measurable denominator.
+
+The hackathon is the first validated resilience path through this shared foundation. Broader security integrations remain staged later work.
+
 ## Hackathon delivery path
 
 The hackathon goal is one polished vertical slice, not the full enterprise platform.
@@ -21,7 +38,7 @@ The critical demo path is:
 
 ## Phase 0: Repository foundation
 
-**Status:** Not started
+**Status:** Complete
 
 ### Objective
 
@@ -39,9 +56,10 @@ Create the minimal development structure and verify that contributors can run it
 
 ### Decisions required
 
-- Neo4j immediately or in-memory graph for the first slice
-- LocalStack edition and Chaos API availability
-- Exact sample application
+- Selected: in-memory graph behind a replaceable storage interface in Phase 4.
+- Selected: static product browsing, DynamoDB-backed order reads, and order creation via `PutItem`; SQS deferred.
+- Selected: optional LocalStack container now; resource integration in Phase 2.
+- Resolve in Phase 7: Chaos API availability; use a labeled application-side operation fault adapter if unavailable. No required paid feature.
 
 ### Acceptance criteria
 
@@ -50,6 +68,19 @@ Create the minimal development structure and verify that contributors can run it
 - Frontend loads.
 - Tests run locally.
 - No credentials are committed.
+
+
+### Verification evidence — 2026-11-14
+
+- `make setup` succeeded with Python 3.12 and Node 24 in the cloud workspace; container frontend also runs on Node 22.
+- `make check` passed: Ruff lint and formatting, two backend API contract tests, TypeScript checking, and Vite production build.
+- Compose backend and frontend built and started; backend health returned HTTP 200 with the expected service identity. The UI reached it through the `/api` proxy.
+- Headless Chromium verified the rendered empty workspace, stable connected state after five seconds, HTTP failure, malformed service identity, timeout, retry recovery, and no horizontal overflow at 390px. No browser page errors were observed. Desktop and mobile screenshots were inspected.
+- Compose stop/remove and restart without rebuilding were exercised.
+- The cloud proxy required its session CA as a temporary BuildKit secret for package downloads. Environment-specific Dockerfiles and Compose override are under ignored `work/`; no certificate was copied into the repository or image. TLS verification remained enabled. A vanilla Docker build was not verified on a network without this proxy.
+- LocalStack startup, Chaos API availability, resource initialization, discovery, graph traversal, and fault injection have not been verified or implemented in this phase.
+- Backend tests currently emit an upstream TestClient/httpx deprecation warning; tests pass.
+- At Phase 0 verification, changes were local. The user subsequently authorized committing and pushing the foundation to GitHub. No application deployment or cloud account modification is part of that push.
 
 ---
 
@@ -66,13 +97,13 @@ Build the smallest application that can demonstrate partial failure at the capab
 An online store with:
 
 - Product browsing
-- Cart access
+- Order reads
 - Order creation
 
 Suggested dependencies:
 
-- DynamoDB for products or orders
-- SQS for deferred order processing or fallback
+- DynamoDB for order reads and writes
+- Static product catalog remains available during a `PutItem` failure; SQS deferred
 - One simple API and frontend
 
 ### Acceptance criteria
@@ -352,7 +383,7 @@ Add real AWS inventory and telemetry collectors, validate IAM and network analys
 
 ## Phase 13: Security correlation
 
-Import SBOM, known-vulnerability, IAM, exposure, and reachability findings into the application graph.
+Import SBOM, known-vulnerability, IAM, exposure, and reachability findings through existing tool integrations. Link findings to capabilities, ownership, isolation impact, and administrative recovery paths. Show source coverage, recency, and uncertainty. Keep recommendations distinct from authorized execution.
 
 ## Phase 14: Multi-cloud and third-party dependencies
 

@@ -2,7 +2,7 @@
 
 ## Project goal
 
-Build a capability-aware application resilience platform for the SunHacks 2026 hackathon.
+Build a unified application security, exposure, and resilience platform. The SunHacks 2026 demo is the first validated slice.
 
 The platform must help a user answer:
 
@@ -13,6 +13,23 @@ The platform must help a user answer:
 - What actually failed, to what extent, and how quickly did it recover?
 
 The platform is not merely an infrastructure inventory or endpoint blocker. Its primary output is application-level impact.
+
+## Platform vision
+
+The destination is a central application security, exposure, and resilience workspace. One evidence-backed application graph connects:
+
+- Business capabilities, user journeys, owners, criticality, and recovery objectives.
+- Services, APIs, cloud resources, databases, queues, and external dependencies.
+- Identities, permissions, network reachability, exposure, packages, and known vulnerabilities.
+- Failure propagation, fallbacks, monitoring, administrative access, recovery paths, and experiment results.
+
+The application is the entry point: select an application, inspect capabilities and dependencies, investigate exposure, predict impact, validate through controlled experiments, and review evidence and recommended actions.
+
+Example questions include: Is a vulnerable service reachable, which customer capability depends on it, and what would isolation affect? If the identity provider fails, can customers log in and can engineers still access recovery systems?
+
+Integrate existing scanners, inventories, and telemetry through collectors. Preserve provenance and limitations rather than rebuilding every tool. Every assessment must expose sources, recency, confidence, and coverage gaps. Missing or stale evidence means unknown, not healthy or secure. A confirmed dependency does not confirm a predicted failure; predictions and observations remain separate. Do not invent completeness percentages without a measurable denominator.
+
+The hackathon is the first validated resilience path through this shared foundation. Broader security integrations remain staged later work.
 
 ## Required reading
 
