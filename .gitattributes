@@ -1,0 +1,3 @@
+# Preserve patch context and the bundled font license as supplied.
+*.patch text eol=lf -whitespace
+frontend/public/fonts/OFL.txt -whitespace

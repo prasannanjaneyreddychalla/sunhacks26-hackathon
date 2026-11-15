@@ -1,0 +1,17 @@
+services:
+  backend:
+    environment:
+      PITWALL_ENABLED: "1"
+      PITWALL_DATA_DIR: /data
+    volumes:
+      - pitwall-state:/data
+    networks:
+      default:
+      quiz:
+        aliases: [pitwall-gateway]
+networks:
+  quiz:
+    external: true
+    name: sunhacks-quiz-lab
+volumes:
+  pitwall-state:

@@ -1,431 +1,83 @@
-# Project Context
+# What Pitwall is for
 
-## 1. Product summary
+Pitwall helps answer a practical question: when one part of an app fails, what can people still do?
 
-This project is a unified application security, exposure, and resilience platform.
+The first version tests a local Quiz app. The bigger goal is to connect app behaviour, dependencies, security findings, and recovery in one place. The [README](README.md) explains today's setup. [PLANS.md](PLANS.md) records what has actually passed.
 
-It continuously discovers how an application works, what it depends on, and what happens when a dependency becomes unavailable or degraded. It connects runtime dependencies and infrastructure to business capabilities and user journeys.
+## The basic loop
 
-An engineer can select or enter:
+Start with a working app. Pick a dependency, look at the expected effect, and run a short fault. Check the same features before, during, and after. Show which results matched the expectation, which did not, and what could not be checked.
 
-- An AWS service
-- An AWS API operation
-- A domain, URL, or IP address
-- An internal microservice
-- A database, queue, or stream
-- An identity provider
-- An operational service such as AWS Systems Manager
-- A network or authentication path
+The useful result is about the app. For example, scores may stop saving while quiz browsing keeps working. SQS and Lambda can still be available even when they cannot finish the work that needs the database.
 
-The platform then answers:
+Returning traffic to normal is only part of recovery. A new submission might work while an earlier submission is still missing. Pitwall should make that difference easy to see.
 
-1. Does the application use this dependency?
-2. What evidence proves that it is used?
-3. Which components call it?
-4. Which user journeys and business capabilities depend on it?
-5. What is predicted to fail if the dependency becomes unavailable?
-6. Can that failure be simulated safely?
-7. What actually failed during the experiment?
-8. How far did the failure spread?
-9. Did fallbacks, retries, circuit breakers, monitoring, and recovery work?
-10. How long did the application take to recover?
+## What works today
 
-The main outcome is not a list of failed resources. It is a capability-level impact report.
+Pitwall sits between the Quiz app's AWS calls and its LocalStack instance. It can return temporary errors for seven selected targets and check nine app features.
 
-## Platform vision
+The dashboard shows dependencies next to the feature results. You can inspect recorded calls, see a timeline, reopen a saved run, or restore traffic early.
 
-The destination is a central application security, exposure, and resilience workspace. One evidence-backed application graph connects:
+The paths and expected effects come from the Quiz source. We then check real requests and real results. This is not automatic discovery of every dependency. Some links inside managed services are still outside our view.
 
-- Business capabilities, user journeys, owners, criticality, and recovery objectives.
-- Services, APIs, cloud resources, databases, queues, and external dependencies.
-- Identities, permissions, network reachability, exposure, packages, and known vulnerabilities.
-- Failure propagation, fallbacks, monitoring, administrative access, recovery paths, and experiment results.
+The current lab is local. It does not use a real AWS account, run production faults, or assess security. The free setup uses S3 hosting, a Lambda/EventBridge relay, and SES v1 in place of the original sample's CloudFront, Pipes, and SES v2 setup.
 
-The application is the entry point: select an application, inspect capabilities and dependencies, investigate exposure, predict impact, validate through controlled experiments, and review evidence and recommended actions.
+## Start from features, not just services
 
-Example questions include: Is a vulnerable service reachable, which customer capability depends on it, and what would isolation affect? If the identity provider fails, can customers log in and can engineers still access recovery systems?
+A feature is something a user or operator needs to do: log in, browse quizzes, submit answers, save a score, receive an email, deploy, or recover the app.
 
-Integrate existing scanners, inventories, and telemetry through collectors. Preserve provenance and limitations rather than rebuilding every tool. Every assessment must expose sources, recency, confidence, and coverage gaps. Missing or stale evidence means unknown, not healthy or secure. A confirmed dependency does not confirm a predicted failure; predictions and observations remain separate. Do not invent completeness percentages without a measurable denominator.
+Over time, each feature should have a stable ID, a name, an owner, how important it is, its data and service needs, and its fallback and recovery expectations. Availability and recovery-time goals belong here too.
 
-The hackathon is the first validated resilience path through this shared foundation. Broader security integrations remain staged later work.
+Connect observed calls to these features. Keep the source, when it was seen, and the confidence for each connection. A path read from source and a path observed during a run are different kinds of information.
 
-## 2. Core example
+## What we want to add
 
-Suppose the user enters:
+People should eventually be able to search for a service, operation, endpoint, domain, IP, identity provider, resource, or software package. Pitwall should show whether the app uses it, which features depend on it, and what is likely to be affected by a failure or security finding.
 
-`dynamodb.us-east-1.amazonaws.com`
+The app map may include features, services, functions, containers, cloud resources, data stores, queues, endpoints, identities, access rules, packages, monitoring, and recovery systems. Connections should say how those parts relate, such as "calls," "depends on," "runs on," or "is allowed by."
 
-The platform should:
+Use stable IDs. Keep the reason for each link. Record when it was first and last seen, and leave room to replace the storage or graph tool later.
 
-1. Search runtime evidence to determine whether the application uses the endpoint.
-2. Identify callers and operations such as `GetItem` and `PutItem`.
-3. Connect those calls to application capabilities.
-4. Predict the impact of losing the endpoint.
-5. Offer a safe experiment against a local, staging, or canary target.
-6. Inject a temporary fault such as latency, throttling, HTTP 500, or HTTP 503.
-7. Run health checks and user-journey probes.
-8. Automatically remove the fault.
-9. Compare predicted and observed results.
+Useful sources could include:
 
-A useful report might state:
+- Application requests, logs, and OpenTelemetry traces.
+- DNS and network-flow observations.
+- CloudTrail, AWS Config, cloud inventories, and deployment files.
+- IAM policies, security groups, firewalls, and routing.
+- Package lists, software bills of materials, and known-vulnerability results.
 
-- Product browsing remained available.
-- Cart reads remained available through cache.
-- Order creation failed because `PutItem` returned 503.
-- SQS backlog increased by 842 messages.
-- The circuit breaker opened after 17 seconds.
-- Normal service recovered 94 seconds after restoration.
-
-## 3. Why this is needed
+We do not need all of them in the first demo. Add each one only when it helps answer a real app-level question.
 
-Existing tools usually cover only part of the problem:
+## Show what we know
 
-- Infrastructure inventory describes resources but may not explain business impact.
-- Tracing shows runtime calls but not all IAM, firewall, recovery, or supply-chain relationships.
-- Chaos tools inject faults but require the operator to already understand the target and blast radius.
-- Security scanners report vulnerabilities but may not show which user journeys depend on the affected component.
-- Cloud-native resilience tools may be limited to one provider or supported resource set.
+Keep confirmed, likely, possible, and unknown links distinct. Show the source and age of the information. Never turn "not observed" into "not used" or "safe."
 
-The proposed platform joins these views through an evidence-backed application graph.
+A service returning HTTP 200 does not prove a user journey works. A prediction is not a test result. LocalStack results also do not prove how AWS services depend on one another internally.
 
-## 4. Application capability model
+The read-only view should stay useful without permission to inject faults. Recommendations should stay separate from actions the user has approved.
 
-The system must model application behavior above the infrastructure layer.
-
-Example capabilities:
-
-- User login
-- Product search
-- Cart management
-- Checkout
-- Payment processing
-- Notifications
-- Deployment
-- Monitoring
-- Incident recovery
-- Administrative access
-
-Each capability should eventually include:
-
-- Stable identifier and name
-- Description
-- Owner
-- Criticality
-- Related user journeys
-- Availability objective
-- RTO and RPO when applicable
-- Required services and data
-- External dependencies
-- Fallback and recovery expectations
-
-For the hackathon, a small manually defined catalog is acceptable. Runtime evidence should then connect discovered dependencies to these capabilities.
-
-## 5. Functional requirements
-
-### 5.1 Dependency discovery
-
-Collect evidence from relevant sources such as:
-
-- OpenTelemetry traces
-- Application and proxy logs
-- DNS observations
-- VPC Flow Logs
-- Route 53 Resolver query logs
-- CloudTrail
-- AWS Config and resource inventory
-- Kubernetes or service-mesh data
-- eBPF observations
-- Source configuration
-- Terraform or CloudFormation
-- IAM policies
-- Security groups, NACLs, and firewall rules
-- SBOM and vulnerability findings
-
-The MVP does not need every collector. It needs a clean collector interface and enough evidence to prove one vertical slice.
-
-### 5.2 Unified dependency graph
-
-The graph should be capable of representing:
-
-- Applications
-- Business capabilities
-- User journeys
-- Services
-- Processes, containers, hosts, and functions
-- Cloud resources
-- Databases, queues, and streams
-- Internal and external endpoints
-- DNS names and IP addresses
-- IAM roles and policies
-- Network controls
-- Identity providers
-- Software packages and vulnerability findings
-- Monitoring and recovery systems
-
-Important relationship types include:
-
-- `DEPENDS_ON`
-- `CALLS`
-- `IMPLEMENTS`
-- `SUPPORTS_CAPABILITY`
-- `USES_IDENTITY`
-- `ALLOWED_BY`
-- `BLOCKED_BY`
-- `RUNS_ON`
-- `OBSERVED_BY`
-- `HAS_VULNERABILITY`
-
-Every discovered edge should preserve provenance and confidence.
-
-### 5.3 Endpoint and dependency analysis
-
-The user must be able to search for a domain, URL, IP, AWS service, API operation, resource, or package.
-
-Return:
-
-- Whether it is used
-- Confidence level
-- Evidence
-- Calling components
-- Related capabilities and journeys
-- Frequency and recency
-- Environments and regions
-- Authentication and network paths when available
-- Predicted blast radius
-- Supported experiment methods
-
-### 5.4 Passive impact analysis
-
-Before changing a running environment, the platform should traverse the graph and calculate likely upstream and downstream effects.
-
-Results must distinguish:
-
-- Confirmed impact
-- Likely impact
-- Possible impact
-- Unknown due to missing telemetry
-
-This path must remain read-only.
-
-### 5.5 Controlled fault injection
-
-The long-term platform may support:
-
-- DNS NXDOMAIN or timeout
-- Connection drop or reset
-- Latency and packet loss
-- HTTP 401, 403, 429, 500, and 503
-- AWS API-specific errors
-- Invalid or expired tokens
-- TLS failures
-- Database or queue unavailability
-- Process, container, task, or instance termination
-- Availability Zone or Region disruption
-
-The hackathon MVP should implement a small subset through LocalStack, starting with one AWS service and operation.
-
-### 5.6 Impact measurement
-
-Measure application-level behavior, including:
-
-- User-journey success
-- Capability availability
-- HTTP error rate
-- Response latency
-- Timeouts
-- Retries
-- Queue backlog
-- Failed or duplicated transactions
-- Circuit-breaker state
-- Recovery time
-- Monitoring availability
-- Administrative access when relevant
-
-### 5.7 Safety and governance
-
-Every active experiment must include:
-
-- Explicit target
-- Environment
-- Scope
-- Duration
-- Fault type
-- Pre-flight checks
-- Automatic expiration
-- Stop conditions
-- Cleanup
-- Recovery verification
-- Audit record
-
-Production experimentation is outside the hackathon MVP.
-
-### 5.8 Reporting
-
-An experiment report should contain:
-
-- Selected dependency
-- Evidence that it is used
-- Predicted impact
-- Fault and scope
-- Baseline measurements
-- Observed impact
-- Affected and unaffected capabilities
-- Propagation path
-- Detection and recovery time
-- Safety controls triggered
-- Prediction differences
-- Recommended remediation
-
-## 6. Architecture
+## Keep faults small and reversible
 
-### 6.1 Logical components
-
-1. **Application Catalog**
-   Stores applications, capabilities, user journeys, owners, and criticality.
-
-2. **Discovery Collectors**
-   Gather runtime, cloud, network, configuration, and security evidence.
-
-3. **Normalization Layer**
-   Converts source-specific data into stable graph entities and relationships.
+Each experiment needs a clear local or staging target, a small scope, a time limit, automatic expiry, a manual stop, checks before and after, and a saved record.
 
-4. **Dependency Graph**
-   Stores topology, provenance, confidence, and capability mappings.
+Restore traffic after success, failure, cancellation, or an interrupted run. Check both fresh requests and unfinished work. Do not assume a queue will retry correctly just because it is configured to do so.
 
-5. **Endpoint Analyzer**
-   Resolves user input and finds matching graph nodes and evidence.
+Other failure types can come later: delays, throttling, timeouts, DNS failures, connection loss, authentication errors, TLS errors, process stops, or zone failures. Use an adapter that supports the exact fault. Check AWS FIS coverage before relying on it.
 
-6. **Impact Engine**
-   Traverses the graph and predicts blast radius.
+Start locally. Staging comes next. Production canaries need separate, exact approval and stronger stop, rollback, and recovery controls. Shared network or access changes are outside the first demo.
 
-7. **Experiment Controller**
-   Validates, starts, monitors, expires, and cleans up experiments.
+## The longer-term workspace
 
-8. **Fault Adapters**
-   Integrate LocalStack first, followed later by proxy, Kubernetes, or AWS FIS adapters.
+Security findings should connect to the same app map. A known vulnerable package matters more when we can show whether it is reachable, which feature uses it, and what isolating it would affect.
 
-9. **Observability Evaluator**
-   Captures baseline, experiment, and recovery measurements.
+Use existing scanners instead of rebuilding them. Show their source, coverage, and limits. Do not claim to find unknown zero-days.
 
-10. **Report Generator**
-    Compares prediction with observation and produces a capability-level result.
-
-### 6.2 Suggested MVP stack
-
-- FastAPI backend
-- React and TypeScript frontend
-- Docker Compose
-- LocalStack
-- Neo4j or an in-memory graph for the first slice
-- OpenTelemetry
-- pytest
-- LocalStack Chaos API when available
-- A small built-in fault adapter or Toxiproxy fallback if licensing blocks the Chaos API
-
-The LocalStack Chaos API is an Enterprise feature. The implementation should detect availability and fail clearly. Do not make the entire demo depend on an unavailable paid feature without a fallback plan.
-
-## 7. LocalStack role
-
-LocalStack is suitable for early AWS-focused resilience tests.
-
-It can emulate AWS services and, with supported paid features, inject faults by service, Region, operation, probability, HTTP status, and latency.
-
-Useful local tests include:
-
-- DynamoDB `PutItem` returns 503
-- DynamoDB calls return throttling errors
-- A percentage of calls fail
-- AWS API calls experience added latency
-- A simulated Region becomes unavailable
-
-LocalStack cannot prove real behavior for:
-
-- AWS control-plane failures
-- Full IAM and Organizations enforcement
-- Real VPC, NAT, NACL, Transit Gateway, or resolver behavior
-- Managed-service failover timing
-- Real capacity and quotas
-- Third-party providers
-- Production traffic
-- Actual emergency access paths
-
-The intended progression is:
-
-1. LocalStack
-2. Isolated AWS staging
-3. Carefully controlled production canary, only after the product matures
-
-## 8. Endpoint disruption design
-
-Endpoint blocking is one experiment type, not the whole product.
-
-For arbitrary endpoints, later adapters may use Envoy, Toxiproxy, a service mesh, DNS proxy, or carefully scoped eBPF/network controls.
-
-Tests must distinguish:
-
-- Blocking an AWS management API hostname
-- Blocking application data traffic
-- Breaking DNS resolution itself
-- Returning an application-level error
-- Making the connection hang
-- Breaking authentication
-
-For example, blocking `route53.amazonaws.com` affects the Route 53 management API. It does not by itself simulate failure of normal DNS resolution.
-
-## 9. Security scope
-
-The graph can correlate:
-
-- IAM
-- Network reachability
-- Firewall rules
-- Resource exposure
-- SBOM inventory
-- Known vulnerabilities
-- Application capabilities
-
-The platform should not promise detection of unknown zero-days. It can identify known and newly disclosed vulnerabilities after intelligence becomes available and may later integrate runtime anomaly signals.
-
-Discovery permissions and experiment permissions must remain separate.
-
-## 10. Important technical corrections from the original discussion
-
-- Do not assume AWS FIS API error injection supports DynamoDB or SSM. Verify current AWS documentation before adding any action.
-- AWS Resilience Hub can discover tagged and deployed resources and newer capabilities can analyze DNS-derived dependencies, but DNS-based discovery has blind spots.
-- FIS is an experiment system, not a complete dependency-discovery engine.
-- eBPF is one evidence source, not a guarantee that every encrypted or serverless dependency will be mapped.
-- No single scanner can guarantee discovery of an unknown zero-day.
-
-## 11. Hackathon MVP definition
-
-The MVP succeeds when a judge can:
-
-1. Open the application.
-2. View a small set of business capabilities.
-3. Enter or select a DynamoDB endpoint or operation.
-4. See evidence that the sample application uses it.
-5. See the predicted affected capability path.
-6. Start a safe, time-limited local experiment.
-7. Observe an actual user journey fail or degrade.
-8. See unaffected capabilities remain healthy.
-9. See automatic restoration.
-10. View a report comparing predicted and observed impact.
-
-## 12. Non-goals for the hackathon
-
-- Production-wide chaos engineering
-- Full multi-cloud normalization
-- Complete enterprise asset discovery
-- Automatic remediation of production systems
-- Unknown zero-day detection
-- Replacing existing observability or security platforms
-- Supporting every AWS service and FIS action
-- Building a general-purpose CNAPP
-
-## 13. Reference documentation
-
-- LocalStack Chaos API: https://docs.localstack.cloud/aws/developer-tools/chaos-engineering/chaos-api/
-- LocalStack outage tutorial: https://docs.localstack.cloud/aws/tutorials/simulating-outages/
-- AWS FIS actions reference: https://docs.aws.amazon.com/fis/latest/userguide/fis-actions-reference.html
-- AWS Resilience Hub dependency discovery: https://docs.aws.amazon.com/resilience-hub/latest/userguide/next-gen-dependency-discovery.html
-- OpenTelemetry: https://opentelemetry.io/docs/
+Monitoring and recovery access matter too. An identity-provider failure might block both customer login and the engineer trying to fix it. Those paths should become part of the same view.
+
+Multi-cloud support, broad scanning, and guarded production experiments are later work. The first goal is a clear, repeatable local demo backed by real checks.
+
+## A useful result
+
+A report should explain the chosen dependency, why we think the app uses it, what we expected, what we changed, and what happened. Include affected and unaffected features, timing, retries or queues when measured, restoration, missing work, and a practical next step.
+
+Keep the difference between expected and observed results visible. If a check was skipped or the result is unclear, say so plainly.

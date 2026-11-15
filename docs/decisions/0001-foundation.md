@@ -1,18 +1,19 @@
-# 0001: A small foundation for the shared application graph
+# 0001: Start with a small, working app
 
-Status: Accepted for the first vertical slice.
+This is the early foundation decision. The Quiz choice in [decision 0002](0002-pitwall-quiz-lab.md) replaces the original store idea below.
 
-The product combines application security, exposure, and resilience through evidence linked to business capabilities. The hackathon demonstrates one end-to-end resilience path.
+## What we chose first
 
-## Decisions
+Use FastAPI for the backend, React with TypeScript for the frontend, and Docker Compose to run the local services. Start with process health and a small set of checks.
 
-- Use FastAPI and React/TypeScript, with a same-origin `/api` proxy for local development. The foundation exposes process health only.
-- Start Phase 4 with an in-memory graph behind a repository interface. Preserve stable entity IDs, typed relationships, evidence references, source, observation times, and confidence. Persistence and Neo4j can be added behind that interface when required. No graph implementation is claimed in Phase 0.
-- Keep business, application, security, and recovery entities in the same conceptual model. Add collectors incrementally, including explicit coverage gaps; an empty graph is not evidence of safety.
-- Use static product browsing and DynamoDB-backed order reads/writes as the sample. A scoped `PutItem` failure should leave browsing and reads available. This remains a hypothesis until measured.
-- Provide an optional LocalStack container for local DynamoDB. Initialize resources in Phase 2. Check paid Chaos API availability in Phase 7 and retain a labeled application-side fallback; no paid feature is required for the demo.
-- Defer SQS, scanner integrations, cloud accounts, and active experiments until their planned phases.
+Keep app features, dependencies, security findings, and recovery paths in the same overall model. Every link should have a stable ID and a clear source. An empty graph does not mean an app is safe.
 
-## Consequences
+The first sample idea was a store with static browsing and DynamoDB-backed orders. We expected a write failure to leave browsing and order reads available. That was a plan, not a measured result.
 
-The first graph will lose state on restart and support one local process. A durable evidence store and multi-user isolation are required before broader usage. The current frontend is a development shell, and the API health response does not assess a customer application. Dependency discovery and experiment permissions remain separate when those integrations arrive.
+LocalStack would provide the local AWS services. The demo should have a free path, with a clearly labelled app-side or proxy fault if needed. Queues, scanners, cloud accounts, and active tests would be added when their next agreed step needed them.
+
+## What still matters
+
+Keep the first version small and easy to run. Put storage and adapters behind simple interfaces so they can be replaced later. Add a real graph when the next working example needs it; this note does not say one was built.
+
+Process health only says the process is up. It does not show that a customer feature works. Keep read-only views separate from permission to run faults.

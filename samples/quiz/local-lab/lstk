@@ -1,0 +1,9 @@
+#!/bin/bash
+# Adapter for upstream "lstk aws" calls. Every request targets the local emulator.
+set -euo pipefail
+if [[ "${1:-}" != "aws" ]]; then
+  echo "This local adapter supports only 'lstk aws'." >&2
+  exit 2
+fi
+shift
+exec aws --endpoint-url "${LAB_INTERNAL_ENDPOINT:?}" "$@"

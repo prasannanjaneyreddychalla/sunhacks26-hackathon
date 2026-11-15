@@ -1,162 +1,77 @@
-# AGENTS.md
+# Working on Pitwall
 
-## Project goal
+Pitwall helps people see what breaks when an app loses a dependency, what still works, and what happens after traffic comes back. SunHacks 2026 is the first demo.
 
-Build a unified application security, exposure, and resilience platform. The SunHacks 2026 demo is the first validated slice.
+Keep the language plain. Explain changes as you would to a teammate. Markdown should use short sentences, simple words, and useful examples. Explain a technical term when it matters; leave it out when it does not.
 
-The platform must help a user answer:
+## Read before making changes
 
-- Does the application use a selected endpoint or dependency?
-- Which services, user journeys, and business capabilities depend on it?
-- What is the predicted blast radius if it fails?
-- Can the failure be simulated safely?
-- What actually failed, to what extent, and how quickly did it recover?
+Read `README.md`, `PROJECT_CONTEXT.md`, `PLANS.md`, and the code and tests for the part you are changing. Check the latest test notes too.
 
-The platform is not merely an infrastructure inventory or endpoint blocker. Its primary output is application-level impact.
+The code and tests tell us what works today. The wider plan is not a list of finished features. Do not say something works until it has been run and checked.
 
-## Platform vision
+## Focus on what the app can do
 
-The destination is a central application security, exposure, and resilience workspace. One evidence-backed application graph connects:
+Show the effect on real features. "The score was never saved" is more useful than just "DynamoDB returned 503."
 
-- Business capabilities, user journeys, owners, criticality, and recovery objectives.
-- Services, APIs, cloud resources, databases, queues, and external dependencies.
-- Identities, permissions, network reachability, exposure, packages, and known vulnerabilities.
-- Failure propagation, fallbacks, monitoring, administrative access, recovery paths, and experiment results.
+Keep these separate:
 
-The application is the entry point: select an application, inspect capabilities and dependencies, investigate exposure, predict impact, validate through controlled experiments, and review evidence and recommended actions.
+- What the source suggests will happen.
+- What we saw in requests, logs, and feature checks.
+- What we could not check.
 
-Example questions include: Is a vulnerable service reachable, which customer capability depends on it, and what would isolation affect? If the identity provider fails, can customers log in and can engineers still access recovery systems?
+A successful API response does not prove the job finished. An empty queue does not prove every message was handled. Missing information means unknown, not healthy or safe.
 
-Integrate existing scanners, inventories, and telemetry through collectors. Preserve provenance and limitations rather than rebuilding every tool. Every assessment must expose sources, recency, confidence, and coverage gaps. Missing or stale evidence means unknown, not healthy or secure. A confirmed dependency does not confirm a predicted failure; predictions and observations remain separate. Do not invent completeness percentages without a measurable denominator.
+Each dependency observation should keep its source, caller, target and operation, first and last seen times, and confidence. Keep stable IDs for apps and features. Do not invent links or percentages to fill gaps.
 
-The hackathon is the first validated resilience path through this shared foundation. Broader security integrations remain staged later work.
+## Keep the first demo small
 
-## Required reading
+The first demo is local and AWS-focused. Use one sample app, a small list of features, a clear expected failure, a short fault, recovery checks, and a before/during/after report.
 
-Before planning or implementation, read:
+The current sample is the Serverless Quiz app. Its paths are defined from source and paired with observed requests. We have not built general automatic discovery, a full graph engine, or a security scanner.
 
-1. `PROJECT_CONTEXT.md`
-2. `PLANS.md`
-3. The current repository code and tests
-4. The latest recorded phase status
+Later, Pitwall should connect app features to services, identities, network paths, known vulnerabilities, monitoring, and recovery access. Use existing scanners and data sources where they fit. Keep the source, age, confidence, and missing coverage visible for each result.
 
-Treat the repository and observed test results as the source of truth. Do not claim that a feature works unless it has been run and verified.
+Do not claim to detect unknown zero-days. Known-vulnerability results depend on available vulnerability data. Unusual runtime behaviour is a separate signal.
 
-## MVP boundary
+## Keep experiments contained
 
-The hackathon MVP is AWS-focused and local-first.
+Start with a local emulator. Use isolated staging only when the user asks. A production canary needs explicit approval for the exact target and experiment. Never run or prepare a production fault without that approval.
 
-It should demonstrate:
+Every active fault needs:
 
-- One sample application
-- A small capability catalog and user journey
-- LocalStack-backed AWS dependencies
-- Runtime dependency evidence
-- Endpoint or dependency search
-- Passive blast-radius prediction
-- One controlled fault experiment
-- Automatic restoration
-- Application-level impact measurement
-- A predicted-versus-observed report
+- A specific target and a small scope.
+- A maximum duration and automatic expiry.
+- A stop control and cleanup that is safe to repeat.
+- Health checks before and after.
+- A record of what happened.
 
-Multi-cloud support, arbitrary production fault injection, enterprise identity integrations, and advanced vulnerability correlation are later work unless the user explicitly changes the scope.
+Do not change shared DNS, firewalls, IAM, network ACLs, or routing for the MVP. Keep read-only discovery separate from fault controls and permissions.
 
-## Engineering principles
+Check what a fault tool actually supports before using it. Do not assume AWS FIS can fail every AWS API. LocalStack faults and proxy faults have different coverage. Label simulated failures clearly.
 
-### Capability first
+## Work in small, testable steps
 
-Model business capabilities and user journeys before infrastructure. A result such as "DynamoDB returned 503" is incomplete. The platform should explain that order creation failed while product browsing remained available.
+For each approved piece of work:
 
-### Evidence over assumptions
+1. Read the relevant plan and current code.
+2. State the assumptions and the smallest check that would show it works.
+3. Make the change within the approved scope.
+4. Run focused tests, then the available project checks.
+5. Check cleanup, including failures and interrupted runs.
+6. Record actual results and update the docs.
+7. Stop before starting later work unless the user asked to continue.
 
-Every discovered dependency should record:
+Keep only one delivery step in progress at a time. A step is done when its checks pass, cleanup is verified, and the docs match the code.
 
-- Evidence source
-- First and last observation time
-- Calling component
-- Target endpoint or operation
-- Confidence level
+## Code and data
 
-Distinguish confirmed, likely, possible, and unknown relationships.
+Prefer simple code. Keep adapters separate so the gateway, emulator, storage, or cloud connection can be replaced later. The current stack is FastAPI, React/TypeScript, Docker Compose, and LocalStack. Add tools only when the next working example needs them.
 
-### Safe by design
+Validate fault input. Put timeouts on network calls. Use structured logs and UTC timestamps. Test failed cleanup and interrupted experiments. Keep prediction and observation separate in stored results.
 
-Use this environment order:
+Never commit real credentials, tokens, private account details, or sensitive request data. Local examples may use clearly fake credentials and IDs. Keep local data, backups, build output, and secrets out of Git.
 
-1. Local emulator
-2. Isolated staging
-3. Production canary only with explicit approval
+## Git and other outside actions
 
-Never run or prepare a production fault against a live account without explicit user authorization for the exact target and experiment.
-
-Every active experiment must have:
-
-- Narrow target scope
-- Maximum duration
-- Automatic expiration
-- Rollback or cleanup
-- Health checks
-- Audit record
-
-Do not use shared, organization-wide DNS, firewall, IAM, NACL, or routing changes for an MVP experiment.
-
-### Separate prediction from execution
-
-The read-only discovery and graph-analysis path must remain useful without fault-injection permissions. Keep active experiment permissions separate and minimal.
-
-### Be precise about security claims
-
-Do not claim that the platform detects unknown zero-days. Package scanners identify known or newly disclosed vulnerabilities after intelligence becomes available. Runtime anomaly detection is a separate capability.
-
-### Be precise about AWS FIS
-
-Do not assume AWS Fault Injection Service can inject API failures into every AWS service. Verify current supported actions before documenting or implementing an FIS experiment. LocalStack Chaos API and proxy-based faults cover different cases.
-
-## Proposed technical baseline
-
-Use the smallest stack that can prove the MVP. The current proposal is:
-
-- Backend: Python and FastAPI
-- Frontend: React with TypeScript
-- Local environment: Docker Compose
-- AWS emulator: LocalStack
-- Graph: Neo4j, or an in-memory graph for the earliest vertical slice
-- Telemetry: OpenTelemetry plus application health probes
-- Fault injection: LocalStack Chaos API first; Toxiproxy or Envoy later
-- Tests: pytest for backend and focused frontend tests
-
-This is a proposed baseline, not a license to add every component immediately. Prefer a working vertical slice over a broad incomplete architecture.
-
-## Implementation workflow
-
-For each phase:
-
-1. Read the phase and its dependencies in `PLANS.md`.
-2. Inspect the current repository.
-3. State assumptions and unresolved decisions.
-4. Define the smallest observable acceptance test.
-5. Implement only the approved phase.
-6. Run focused tests.
-7. Run the broader available test suite.
-8. Record actual evidence.
-9. Update phase status and relevant documentation.
-10. Stop before beginning the next phase unless the user asks to continue.
-
-## Code quality
-
-- Prefer simple, readable code.
-- Keep integrations behind interfaces so LocalStack, proxies, and future cloud adapters can be replaced.
-- Validate all experiment input.
-- Use structured logs.
-- Store timestamps in UTC.
-- Do not commit credentials, tokens, account identifiers, or sensitive telemetry.
-- Include timeouts on all network operations.
-- Make cleanup idempotent.
-- Include tests for failed cleanup and interrupted experiments.
-- Keep application-capability identifiers stable.
-
-## Git and external actions
-
-Do not deploy, push branches, open pull requests, change cloud resources, or contact external systems unless explicitly requested.
-
-Repository documentation may be updated as part of an approved implementation phase. Preserve user work and avoid unrelated changes.
+Do not deploy, push, open pull requests, change real cloud resources, or contact outside systems unless the user asks. Updating repo docs is part of approved work. Preserve the user's edits and avoid unrelated changes.

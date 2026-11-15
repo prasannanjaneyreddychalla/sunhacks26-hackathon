@@ -1,0 +1,43 @@
+diff --git a/tests/test_infra.py b/tests/test_infra.py
+index 03f57d1..1597a2e 100644
+--- a/tests/test_infra.py
++++ b/tests/test_infra.py
+@@ -31,6 +31,10 @@ def api_endpoint():
+     return API_ENDPOINT
+ 
+ def test_quiz_workflow(api_endpoint):
++    email_client = localstack.sdk.aws.AWSClient()
++    existing_email_ids = {
++        message.id for message in email_client.get_ses_messages(email_filter="sender@example.com")
++    }
+     create_quiz_payload = {
+         "Title": "Sample Quiz",
+         "Visibility": "Public",
+@@ -231,7 +235,26 @@ def test_quiz_workflow(api_endpoint):
+ 
+     client = localstack.sdk.aws.AWSClient()
+     sender_email = "sender@example.com"
+-    messages = client.get_ses_messages(email_filter=sender_email)
++    # Email follows the saved score asynchronously, including a Lambda cold start.
++    # Require a fresh message from this run instead of accepting an older result.
++    email_deadline = time.monotonic() + 45
++    messages = []
++    while time.monotonic() < email_deadline:
++        messages = [
++            message for message in client.get_ses_messages(email_filter=sender_email)
++            if message.id not in existing_email_ids
++        ]
++        if any(
++            message.source == sender_email
++            and "user@example.com" in message.destination.to_addresses
++            and "Hello user2" in message.body.html_part
++            and str(expected_scores["user2"]) in message.body.html_part
++            for message in messages
++        ):
++            break
++        time.sleep(1)
++    else:
++        pytest.fail("No fresh quiz result email arrived within 45 seconds")
+ 
+     email_found = False
+     for message in messages:

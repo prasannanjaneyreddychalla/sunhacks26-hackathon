@@ -1,0 +1,57 @@
+name: sunhacks-quiz-lab
+services:
+  localstack:
+    image: localstack/localstack@sha256:2f1b748d0ce5877fbe6fc4b37a6d3a4600331ba30dcae1cf6bbd16766295dcfc
+    ports:
+      - "127.0.0.1:4567:4566"
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:-}
+      LAMBDA_DOCKER_NETWORK: sunhacks-quiz-lab
+      PERSISTENCE: "1"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - lab
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+  tools:
+    profiles: ["tools"]
+    image: sunhacks-quiz-lab-tools:local
+    build:
+      context: .
+      dockerfile: Tools.Dockerfile
+    network_mode: service:localstack
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      LAB_INTERNAL_ENDPOINT: http://localhost:4566
+      LAB_PUBLIC_ENDPOINT: http://localhost:4567
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ../:/source:ro
+      - workspace:/workspace
+    entrypoint: ["/opt/lab/tools.sh"]
+    command: ["status"]
+  frontend:
+    profiles: ["frontend"]
+    image: python:3.12-slim
+    ports:
+      - "127.0.0.1:3002:3000"
+    volumes:
+      - workspace:/workspace:ro
+    command: ["python", "-m", "http.server", "3000", "--directory", "/workspace/frontend/build"]
+    networks:
+      - lab
+networks:
+  lab:
+    name: sunhacks-quiz-lab
+volumes:
+  localstack-data:
+  workspace:

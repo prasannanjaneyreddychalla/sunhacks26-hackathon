@@ -1,405 +1,100 @@
-# Implementation Plan
+# Plan and test notes
 
-## Status legend
+## Where we are
 
-- Not started
-- In progress
-- Blocked
-- Complete
+The first Pitwall Quiz lab is built and has been checked locally. The wider product is still in progress.
 
-Only one implementation phase should be in progress at a time.
+Today, Pitwall can observe the Quiz app's AWS requests, apply one short fault, and compare the same features before, during, and after. The dashboard keeps the results side by side and shows the recorded calls behind them.
 
-## Platform vision
+The product is called Pitwall. SunHacks is the hackathon name.
 
-The destination is a central application security, exposure, and resilience workspace. One evidence-backed application graph connects:
+## What is finished in this version
 
-- Business capabilities, user journeys, owners, criticality, and recovery objectives.
-- Services, APIs, cloud resources, databases, queues, and external dependencies.
-- Identities, permissions, network reachability, exposure, packages, and known vulnerabilities.
-- Failure propagation, fallbacks, monitoring, administrative access, recovery paths, and experiment results.
+- The clean dashboard, with service filtering, saved runs, request details, and a timeline.
+- A connection to the existing Quiz app, with backups and a way to disconnect it.
+- Seven choices of temporary HTTP 503 failures.
+- Nine feature checks, including fresh scores, leaderboard entries, and captured emails.
+- A maximum fault window, automatic expiry, a manual restore button, and cleanup after errors.
+- Saved reports and a clear interrupted-run status after a restart.
+- Quiz setup files and the email test fix kept in this repo under `samples/quiz`.
 
-The application is the entry point: select an application, inspect capabilities and dependencies, investigate exposure, predict impact, validate through controlled experiments, and review evidence and recommended actions.
+The app's business handlers stay unchanged. The small entry wrapper routes calls through Pitwall, carries the run ID between steps, and limits SDK attempts to two.
 
-Example questions include: Is a vulnerable service reachable, which customer capability depends on it, and what would isolation affect? If the identity provider fails, can customers log in and can engineers still access recovery systems?
+## What we checked on November 15, 2026
 
-Integrate existing scanners, inventories, and telemetry through collectors. Preserve provenance and limitations rather than rebuilding every tool. Every assessment must expose sources, recency, confidence, and coverage gaps. Missing or stale evidence means unknown, not healthy or secure. A confirmed dependency does not confirm a predicted failure; predictions and observations remain separate. Do not invent completeness percentages without a measurable denominator.
+All **30 backend tests** passed. Ruff checks and the TypeScript/Vite frontend build passed too. The backend tests still show an upstream TestClient deprecation warning.
 
-The hackathon is the first validated resilience path through this shared foundation. Broader security integrations remain staged later work.
+Before pushing this version, we ran those checks again. We also tried the saved Quiz setup in a fresh checkout, then ran it a second time. Both runs worked without changing the running lab.
 
-## Hackathon delivery path
+The live tests covered all seven targets. Every run passed all nine features before the fault and all nine again after restoration.
 
-The hackathon goal is one polished vertical slice, not the full enterprise platform.
+| Fault | Features affected during the fault |
+| --- | --- |
+| Score writes | Saving the score, updating the leaderboard, and receiving the email |
+| Submission queue | Accepting answers and the three steps that follow |
+| Result email | Receiving the email |
+| Email workflow | Receiving the email |
+| All Quiz DynamoDB calls | Eight features; the frontend page still loaded |
+| Quiz API requests | Eight features; the frontend page still loaded |
+| Frontend downloads | Loading the frontend page; the separate API checks still worked |
 
-The critical demo path is:
+The final score-write run showed **9 working before, 6 during, and 9 after**. The three affected features matched the expectation from the source.
 
-`sample capability → observed dependency → endpoint search → predicted impact → LocalStack fault → measured capability impact → automatic recovery → report`
+The submission accepted during that fault still had no saved score after recovery. We report that as a missing result at the time we checked, not proof of permanent data loss.
 
----
+We also checked:
 
-## Phase 0: Repository foundation
+- **Manual restore:** clicked Restore all during a real fault. The run stopped, the fault cleared, and all nine recovery checks passed. Checks stopped too early were marked unknown.
+- **Restart:** restarted Pitwall with an active email fault. The fault cleared, the saved run became interrupted, and recovery stayed unverified until checked again.
+- **Disconnect and reconnect:** restored the Quiz's direct LocalStack connection. Its workflow test and both adapter tests passed. We then reconnected it and ran the final score-write test above.
+- **The UI:** checked 390px mobile, 820px tablet, and the default desktop size. There was no horizontal page overflow. Filtering, Ctrl-K, navigation, the About dialog, Escape, saved runs, and the connected Quiz list worked. The final browser error log was empty.
 
-**Status:** Complete
+The request log keeps at most 8,000 records. The activity table shows the latest 300 for a run, while service counts use all retained records for that run.
 
-### Objective
+## What those results do not prove
 
-Create the minimal development structure and verify that contributors can run it consistently.
+The dependency paths and expected effects are based on the Quiz source. We attach observed calls and feature checks to them; we have not built full automatic discovery or a general graph engine.
 
-### In scope
+We do not trace every managed-service link or AWS's internal infrastructure. Service replies do not amount to a security assessment. The current fault type is HTTP 503, not a real cloud service shutdown.
 
-- Select package structure
-- Add backend and frontend skeletons
-- Add Docker Compose
-- Add environment example without secrets
-- Add linting and test commands
-- Add architecture decision record for the selected graph approach
-- Add CI for basic checks if time permits
+The frontend check reads the HTML page. The other checks use real APIs and verify their results. They are not a full browser test suite.
 
-### Decisions required
+Queue-backlog charts, wider security sources, report exports, and production experiments are not built yet. A full destructive reset was not part of the checks above.
 
-- Selected: in-memory graph behind a replaceable storage interface in Phase 4.
-- Selected: static product browsing, DynamoDB-backed order reads, and order creation via `PutItem`; SQS deferred.
-- Selected: optional LocalStack container now; resource integration in Phase 2.
-- Resolve in Phase 7: Chaos API availability; use a labeled application-side operation fault adapter if unavailable. No required paid feature.
+## What to work on next
 
-### Acceptance criteria
+These are possible next steps, not work to start without agreement:
 
-- A new contributor can start the empty application from documented commands.
-- Backend health endpoint responds.
-- Frontend loads.
-- Tests run locally.
-- No credentials are committed.
+1. Show queue depth and how long unfinished work stays pending.
+2. Compare the current scoring behaviour with a version that retries failed score writes correctly.
+3. Add another sample app to check that the model is useful beyond quizzes.
+4. Build a real dependency graph from more sources, keeping unknown links visible.
+5. Add report export and clearer next-step suggestions.
+6. Add other fault types through small, replaceable adapters.
 
+## How this fits the wider plan
 
-### Verification evidence — 2026-11-14
+| Area | Current state |
+| --- | --- |
+| Repo, API, frontend, and checks | In place |
+| Quiz features and local AWS setup | Working; full reset check is still missing |
+| Request collection | Working for the connected calls; more sources later |
+| Dependency graph | Source-defined paths only |
+| Endpoint search | Service filter and fixed targets; general search later |
+| Expected impact | Source-based expectations; no graph-based prediction yet |
+| Local faults | Working for the seven listed targets |
+| Feature measurements | Working; queue metrics still missing |
+| Before/during/after report | Working in the UI; wider exports and advice later |
+| Demo preparation | Startup and recovery checked; a reset rehearsal and backup video remain |
 
-- `make setup` succeeded with Python 3.12 and Node 24 in the cloud workspace; container frontend also runs on Node 22.
-- `make check` passed: Ruff lint and formatting, two backend API contract tests, TypeScript checking, and Vite production build.
-- Compose backend and frontend built and started; backend health returned HTTP 200 with the expected service identity. The UI reached it through the `/api` proxy.
-- Headless Chromium verified the rendered empty workspace, stable connected state after five seconds, HTTP failure, malformed service identity, timeout, retry recovery, and no horizontal overflow at 390px. No browser page errors were observed. Desktop and mobile screenshots were inspected.
-- Compose stop/remove and restart without rebuilding were exercised.
-- The cloud proxy required its session CA as a temporary BuildKit secret for package downloads. Environment-specific Dockerfiles and Compose override are under ignored `work/`; no certificate was copied into the repository or image. TLS verification remained enabled. A vanilla Docker build was not verified on a network without this proxy.
-- LocalStack startup, Chaos API availability, resource initialization, discovery, graph traversal, and fault injection have not been verified or implemented in this phase.
-- Backend tests currently emit an upstream TestClient/httpx deprecation warning; tests pass.
-- At Phase 0 verification, changes were local. The user subsequently authorized committing and pushing the foundation to GitHub. No application deployment or cloud account modification is part of that push.
+Later work can add delays, throttling, DNS and connection failures, then carefully approved AWS staging tests. Security sources, other clouds, and guarded production canaries come after the local path is reliable. Production work always needs approval for the exact target and test.
 
----
+## Earlier checks
 
-## Phase 1: Sample application and capability catalog
+On November 14, the basic API, frontend, Docker setup, and project checks worked. The first small Flaskr fixture later passed its own tests, but it was removed on November 15 at the user's request. The Quiz app is now the test application.
 
-**Status:** Not started
+The original store idea was replaced by the existing Quiz sample. [Decision 0001](docs/decisions/0001-foundation.md) records the early choice; [decision 0002](docs/decisions/0002-pitwall-quiz-lab.md) explains the current gateway.
 
-### Objective
+## Before calling a step done
 
-Build the smallest application that can demonstrate partial failure at the capability level.
-
-### Proposed sample
-
-An online store with:
-
-- Product browsing
-- Order reads
-- Order creation
-
-Suggested dependencies:
-
-- DynamoDB for order reads and writes
-- Static product catalog remains available during a `PutItem` failure; SQS deferred
-- One simple API and frontend
-
-### Acceptance criteria
-
-- At least two capabilities work normally.
-- One capability depends on DynamoDB.
-- At least one capability remains available when the selected DynamoDB operation fails.
-- Capability definitions have stable identifiers.
-- Automated user-journey probes exist.
-
----
-
-## Phase 2: LocalStack integration
-
-**Status:** Not started
-
-### Objective
-
-Run the sample AWS dependencies locally and create repeatable state.
-
-### In scope
-
-- LocalStack container
-- Resource initialization
-- DynamoDB table
-- SQS queue if used
-- Seed data
-- Readiness checks
-- Cleanup and reset commands
-
-### Acceptance criteria
-
-- The sample application runs without a real AWS account.
-- Resource creation is repeatable.
-- Reset produces a known state.
-- Tests verify normal DynamoDB behavior.
-
----
-
-## Phase 3: Runtime evidence collection
-
-**Status:** Not started
-
-### Objective
-
-Capture evidence showing which application component uses which dependency and operation.
-
-### In scope
-
-- OpenTelemetry or structured instrumentation
-- Service identity
-- Endpoint and operation
-- Timestamp
-- Capability or journey correlation
-- Evidence persistence
-
-### Acceptance criteria
-
-- A normal user journey produces a dependency observation.
-- The observation identifies the caller, target, operation, and capability.
-- Evidence is queryable.
-- Missing or ambiguous data is represented honestly.
-
----
-
-## Phase 4: Dependency graph and capability mapping
-
-**Status:** Not started
-
-### Objective
-
-Represent the sample application, capabilities, services, operations, and endpoints as a traversable graph.
-
-### In scope
-
-- Graph schema
-- Entity normalization
-- Relationship provenance
-- Confidence values
-- Graph query service
-- Small visualization
-
-### Acceptance criteria
-
-- The graph shows a path from capability to service to AWS operation or endpoint.
-- Every runtime-derived edge links to evidence.
-- Duplicate observations do not create duplicate logical nodes.
-- A test confirms the expected blast-radius traversal.
-
----
-
-## Phase 5: Endpoint and dependency search
-
-**Status:** Not started
-
-### Objective
-
-Allow a user to enter an endpoint, AWS service, or operation and understand how the application uses it.
-
-### In scope
-
-- Search input
-- Name and endpoint normalization
-- Matched graph nodes
-- Evidence summary
-- Calling services
-- Related capabilities
-- Confidence and last-seen time
-
-### Acceptance criteria
-
-- Searching for DynamoDB or its endpoint returns the correct dependency.
-- Results show the calling component and capability.
-- Unknown endpoints return "no evidence found" rather than "not used."
-- The interface explains evidence blind spots.
-
----
-
-## Phase 6: Passive blast-radius prediction
-
-**Status:** Not started
-
-### Objective
-
-Predict capability impact without modifying the running application.
-
-### In scope
-
-- Mark a selected node or edge as unavailable in a simulation
-- Traverse dependent paths
-- Classify impact
-- Show affected and unaffected capabilities
-- Record the prediction for comparison
-
-### Acceptance criteria
-
-- The engine predicts the expected capability failure for the sample.
-- It identifies at least one unaffected capability.
-- Results include the reasoning path.
-- Results distinguish confirmed relationships from uncertain ones.
-
----
-
-## Phase 7: Controlled local fault experiment
-
-**Status:** Not started
-
-### Objective
-
-Inject one safe fault against the LocalStack-backed dependency.
-
-### First experiment
-
-Make a selected DynamoDB operation return an error or become unavailable for a short period.
-
-### Required guardrails
-
-- Explicit local environment check
-- Exact service and operation
-- Short maximum duration
-- Automatic removal
-- Manual stop
-- Audit record
-- Idempotent cleanup
-
-### Fallback
-
-If LocalStack Chaos API licensing is unavailable, implement the same demonstration using a small application-side fault adapter, Envoy, or Toxiproxy. Clearly label it as an emulated dependency failure.
-
-### Acceptance criteria
-
-- The experiment cannot target a non-local environment.
-- The fault affects only the intended dependency or operation.
-- It expires automatically.
-- Cleanup succeeds after normal completion and interruption.
-- The application returns to normal health.
-
----
-
-## Phase 8: Application-level measurement
-
-**Status:** Not started
-
-### Objective
-
-Measure baseline, experiment, and recovery behavior.
-
-### In scope
-
-- Automated journey probes
-- Success and failure counts
-- Latency
-- Error types
-- Retry behavior
-- Queue depth if used
-- Experiment timeline
-- Recovery time
-
-### Acceptance criteria
-
-- Baseline health is recorded before the fault.
-- The intended capability degradation is observed.
-- An unaffected capability remains healthy.
-- Recovery is detected after cleanup.
-- Measurements are tied to the experiment ID.
-
----
-
-## Phase 9: Predicted-versus-observed report
-
-**Status:** Not started
-
-### Objective
-
-Produce the primary hackathon result.
-
-### Report contents
-
-- Selected dependency
-- Usage evidence
-- Predicted capability impact
-- Experiment configuration
-- Actual capability impact
-- Affected and unaffected journeys
-- Failure propagation path
-- Detection and recovery time
-- Prediction mismatches
-- Recommended improvement
-
-### Acceptance criteria
-
-- A judge can understand the result without reading raw logs.
-- Prediction and observation are visually distinct.
-- The report includes a complete experiment timeline.
-- The report identifies at least one actionable resilience improvement.
-
----
-
-## Phase 10: Demo hardening
-
-**Status:** Not started
-
-### Objective
-
-Make the vertical slice reliable and understandable for a live demonstration.
-
-### In scope
-
-- One-command startup
-- Seed and reset flow
-- Clear empty, loading, and error states
-- Demo script
-- Failure recovery rehearsal
-- Screenshots or short backup recording
-- Focused security review
-- Final test run
-
-### Acceptance criteria
-
-- The complete demo can be repeated from a clean environment.
-- Startup and reset instructions are verified.
-- No manual database editing is required.
-- A failed experiment can be safely cleaned up.
-- The demo fits the available presentation time.
-
----
-
-# Post-hackathon roadmap
-
-## Phase 11: Additional failure types
-
-Add DNS, connection, latency, throttling, authentication, and TLS experiments through adapter interfaces.
-
-## Phase 12: AWS staging integration
-
-Add real AWS inventory and telemetry collectors, validate IAM and network analysis, and run explicitly approved staging experiments.
-
-## Phase 13: Security correlation
-
-Import SBOM, known-vulnerability, IAM, exposure, and reachability findings through existing tool integrations. Link findings to capabilities, ownership, isolation impact, and administrative recovery paths. Show source coverage, recency, and uncertainty. Keep recommendations distinct from authorized execution.
-
-## Phase 14: Multi-cloud and third-party dependencies
-
-Add provider-specific collectors and normalize external SaaS, CDN, identity, and cloud relationships.
-
-## Phase 15: Guarded production canaries
-
-Only after strong staging evidence, add narrow canary targeting, approval workflows, alarm stop conditions, break-glass verification, and audited rollback.
-
-# Verification expectations
-
-A phase is complete only when:
-
-- Its acceptance criteria are observable.
-- Relevant tests have been run.
-- Actual results are recorded.
-- Cleanup and failure paths are checked.
-- Documentation reflects the implemented behavior.
-- No later phase was silently pulled into scope.
+Keep one agreed step in progress at a time. Check the behaviour, run the relevant tests, check cleanup and interruption, record the actual result, and update the docs. Leave later work for the next agreed step.

@@ -1,91 +1,95 @@
-# sunhacks26-hackathon
+# Pitwall
 
-A unified application security, exposure, and resilience workspace.
+**See what breaks. Know what recovers.**
 
-The project discovers what an application depends on, connects those dependencies to business capabilities and user journeys, predicts the blast radius of a failure, safely injects a controlled fault, and compares the predicted impact with the observed result.
+Pitwall shows you what breaks when part of your app goes down. Switch off a dependency, see which features stop working, and check that everything recovers.
 
-## Hackathon MVP
+Built for SunHacks 2026. The current lab uses a Quiz app and AWS services running locally in LocalStack.
 
-The first demo should prove one complete path:
+## Try it
 
-1. Run a small cloud-native sample application locally.
-2. Use LocalStack for AWS services such as DynamoDB and SQS.
-3. Capture runtime dependency evidence.
-4. Enter or select an endpoint such as DynamoDB.
-5. Show which services and application capabilities use it.
-6. Predict what should fail if it becomes unavailable.
-7. Inject a temporary, scoped LocalStack fault.
-8. Measure the actual application-level impact.
-9. Restore the dependency automatically.
-10. Report predicted versus observed impact.
+Open [Pitwall](http://localhost:5173/), choose a dependency, and click **Run experiment**.
 
-## Start here
+Pitwall checks the app before the fault, while the fault is on, and after traffic is restored. The results sit side by side. You can see which features worked, which failed, and which could not run because an earlier step failed.
 
-Codex and contributors should read these files before implementation:
+Use **Check baseline** to test the app without a fault. **Restore all** turns the fault off right away, then the runner finishes its recovery checks.
 
-- [AGENTS.md](AGENTS.md): repository rules and engineering boundaries
-- [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md): product purpose, requirements, architecture, and decisions
-- [PLANS.md](PLANS.md): ordered implementation phases and acceptance criteria
+## Set it up on Windows
 
-## Product direction
+You need Git, PowerShell 7, and Docker Desktop with Linux containers. You do not need Python or Node installed on the host.
 
-One evidence-backed application graph connects business capabilities, services and dependencies, security exposure, and recovery paths. Investigate a finding, understand its business consequences, predict a disruption, and validate recovery from the same application workspace. Integrate existing scanners and telemetry and always show source coverage, recency, confidence, and unknowns.
+From this repo's folder:
 
-The first hackathon slice validates resilience; broader security integrations remain on the roadmap.
+```powershell
+.\samples\quiz\setup.ps1
+..\aws-serverless-quiz-lab\local-lab\lab.ps1 Build
+..\aws-serverless-quiz-lab\local-lab\lab.ps1 Deploy
+.\scripts\pitwall.ps1 Up
+```
 
-## Current status
+The first command gets the tested Quiz source, our setup files, and the pinned Community image. The first download and build can take a few minutes. This setup does not need a LocalStack token.
 
-Phase 0 foundation: FastAPI process health, React/TypeScript workspace shell, local Compose configuration, and basic checks. No application, collector, graph, security assessment, or experiment is connected yet. See [PLANS.md](PLANS.md) for actual verification status and [foundation decision](docs/decisions/0001-foundation.md) for selected tradeoffs.
+The full Quiz checkout sits next to this repo. Our changes to it are saved here in [samples/quiz](samples/quiz/), including the small email test fix. See that folder for details or a custom checkout path.
 
-## Run locally
+| Open | Address |
+| --- | --- |
+| Pitwall dashboard | [localhost:5173](http://localhost:5173/) |
+| Quiz through Pitwall | [localhost:8000/quiz-lab-webapp/index.html](http://localhost:8000/quiz-lab-webapp/index.html) |
+| API docs | [localhost:8000/docs](http://localhost:8000/docs) |
+| Quiz's LocalStack instance | [localhost:4567](http://localhost:4567/) |
 
-Requirements: Python 3.12+, Node.js 22+, npm, and Make. Run commands from the repository root.
+## What you can test
+
+There are seven choices: score writes, the submission queue, result emails, the email workflow, all Quiz DynamoDB calls, Quiz API requests, and frontend downloads.
+
+Pitwall checks nine features: loading the frontend page, browsing quizzes, opening a quiz, creating a quiz, accepting answers, saving a score, updating the leaderboard, capturing a result email, and reading an older result.
+
+The runner uses private test quizzes. It does not edit or delete your quizzes. Test emails stay in LocalStack and go nowhere near a real inbox.
+
+For example, blocking score writes left **6 of 9 features working**. Saving the score failed, while the leaderboard update and result email could not finish. After restoration, **all 9 worked again**. The earlier submission still had no saved score, so Pitwall showed that separately.
+
+## How it works
+
+The Quiz app's browser API calls and Lambda SDK calls go through Pitwall before reaching LocalStack. Pitwall records the caller, service, operation, result, and time taken. For the selected target, it returns a temporary HTTP 503 error. The AWS service containers keep running.
+
+Only one fault runs at a time. You choose a maximum window of 30, 45, or 60 seconds. The fault ends when the checks finish or the timer expires, whichever comes first. Closing the browser does not leave the fault on.
+
+The paths and expected effects come from reading the Quiz source. The request log and feature checks show what happened. We do not yet trace every link inside LocalStack or discover a full dependency graph automatically. A service replying to a request does not prove the whole app is working or secure.
+
+## Stop or disconnect
+
+Run these from Pitwall's folder:
+
+```powershell
+.\scripts\pitwall.ps1 Status
+.\scripts\pitwall.ps1 Disconnect
+.\scripts\pitwall.ps1 Connect
+.\scripts\pitwall.ps1 Stop
+```
+
+Disconnect puts the Quiz back on its direct LocalStack connection. Stop does that before stopping Pitwall, so the Quiz is not left pointing at a stopped gateway. Use this launcher rather than stopping the connected backend with a raw Docker command.
+
+Pitwall keeps its reports and original connection backups in a Docker volume. If Pitwall restarts during a test, it clears the fault and marks the run interrupted. It does not claim recovery until it checks again.
+
+The free Quiz emulator keeps its AWS resources and Quiz data in memory. Restarting it clears that data. Disconnect Pitwall before redeploying the Quiz, then reconnect it.
+
+## Check the code
+
+With Python 3.12, Node 22, npm, and Make available:
 
 ```sh
 make setup
-```
-
-Start each server in a separate terminal:
-
-```sh
-make dev-api
-```
-
-```sh
-make dev-ui
-```
-
-Open http://localhost:5173. The connection indicator should say **Platform API connected**. API documentation is at http://localhost:8000/docs; process health is at http://localhost:8000/api/health. The frontend proxies `/api` to the backend. Stop either server with Ctrl-C. Dependencies install into `backend/.venv` and `frontend/node_modules`.
-
-## Run with Docker Compose
-
-Requirements: Docker with Compose v2. The default starts only the platform backend and frontend:
-
-```sh
-docker compose up --build -d
-docker compose ps
-```
-
-Open http://localhost:5173. For optional local AWS infrastructure:
-
-```sh
-docker compose --profile aws up -d
-```
-
-LocalStack is exposed at http://localhost:4566. Resource initialization and fault injection are later phases; no AWS account or paid LocalStack feature is needed for the foundation. Services bind to loopback. `.env.example` documents optional host port overrides; copy it to `.env` only if needed. Never supply production credentials for this local demo.
-
-Stop and remove this project's containers:
-
-```sh
-make down
-```
-
-The frontend container runs the development server; this is a local development setup.
-
-## Checks
-
-```sh
 make check
 ```
 
-Runs Ruff lint/format checks, backend API tests, TypeScript checks, and the production frontend build. GitHub Actions runs the same checks after a push or pull request. Container startup is verified separately from these checks.
+This runs the backend checks and frontend build. GitHub runs the same checks on pushes. The local lab has also passed all seven real fault tests. The [test notes](PLANS.md) say what we checked and what is still missing.
+
+To rerun the live fault tests in the running lab:
+
+```powershell
+Get-Content scripts\verify_lab.py -Raw | docker exec -i sunhacks26-hackathon-backend-1 python -
+```
+
+This creates private test data and briefly interrupts the selected Quiz calls. It checks all seven targets and saves its report at `/data/verification.json` inside the backend container.
+
+For more background, read [the product notes](PROJECT_CONTEXT.md), [the plan and test results](PLANS.md), or [why we chose a gateway](docs/decisions/0002-pitwall-quiz-lab.md). [AGENTS.md](AGENTS.md) has the working rules for coding agents.

@@ -1,0 +1,11 @@
+services:
+  localstack:
+    image: localstack/localstack:community-4.10.1-cached
+    pull_policy: never
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ""
+      PERSISTENCE: "0"
+      SERVICES: apigateway,lambda,dynamodb,dynamodbstreams,sqs,sns,s3,stepfunctions,events,iam,logs,cloudwatch,ses,sts
+  tools:
+    environment:
+      QUIZ_LAB_MODE: community
