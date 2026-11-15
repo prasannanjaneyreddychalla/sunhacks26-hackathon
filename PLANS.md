@@ -17,6 +17,7 @@ The product is called Pitwall. SunHacks is the hackathon name.
 - A maximum fault window, automatic expiry, a manual restore button, and cleanup after errors.
 - Saved reports and a clear interrupted-run status after a restart.
 - Quiz setup files and the email test fix kept in this repo under `samples/quiz`.
+- Dependabot alerts, security-fix pull requests, and weekly dependency updates on GitHub.
 
 The app's business handlers stay unchanged. The small entry wrapper routes calls through Pitwall, carries the run ID between steps, and limits SDK attempts to two.
 

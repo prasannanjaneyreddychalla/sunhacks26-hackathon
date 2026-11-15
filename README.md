@@ -84,6 +84,8 @@ make check
 
 This runs the backend checks and frontend build. GitHub runs the same checks on pushes. The local lab has also passed all seven real fault tests. The [test notes](PLANS.md) say what we checked and what is still missing.
 
+Dependabot checks Python and frontend packages, Docker base images, and GitHub Actions every Monday at 9 a.m. Phoenix time. It opens pull requests for updates, with small package updates grouped together. Dependabot alerts and security updates are enabled too.
+
 To rerun the live fault tests in the running lab:
 
 ```powershell

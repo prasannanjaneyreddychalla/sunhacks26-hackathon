@@ -1,0 +1,55 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Phoenix
+    open-pull-requests-limit: 3
+    groups:
+      small-updates:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Phoenix
+    open-pull-requests-limit: 3
+    groups:
+      small-updates:
+        patterns: ["*"]
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /frontend
+      - /samples/quiz/local-lab
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Phoenix
+    open-pull-requests-limit: 3
+    ignore:
+      # Keep the tested emulator and our locally built tools image pinned.
+      - dependency-name: localstack/localstack
+      - dependency-name: sunhacks-quiz-lab-tools
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Phoenix
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ["*"]
